@@ -13,7 +13,7 @@ const {
 Big.DP = 27;
 
 module.exports = {
-  main: async (nearObjects) => {
+  main: async (nearObjects, liquidate) => {
     const {
       near,
       account,
@@ -73,7 +73,7 @@ module.exports = {
       return b.discount.cmp(a.discount);
     });
 
-    if (accountsWithDebt.length > 0) {
+    if (accountsWithDebt.length > 0 && liquidate) {
       const { liquidationAction, totalPricedProfit } = computeLiquidation(
         accountsWithDebt[0]
       );
