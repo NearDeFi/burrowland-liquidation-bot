@@ -87,6 +87,7 @@ module.exports = {
       refFinanceContract,
       burrowContract,
       priceOracleContract,
+      NearConfig,
     };
   },
 };

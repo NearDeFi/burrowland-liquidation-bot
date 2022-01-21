@@ -30,10 +30,13 @@ const keysToCamel = (o) => {
 };
 
 const parseRate = (s) => Big(s).div(Big(10).pow(27));
-const parseRatio = (r) => r / 1e4;
+const parseRatio = (r) => Big(r).div(10000);
 const parseTimestamp = (s) => parseFloat(s) / 1e6;
 
+const bigMin = (a, b) => (a.lt(b) ? a : b);
+
 module.exports = {
+  bigMin,
   keysToCamel,
   parseRate,
   parseRatio,
