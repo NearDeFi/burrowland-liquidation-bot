@@ -61,9 +61,9 @@ module.exports = {
     });
 
     console.log(
-      accounts.map(
-        (a) => `${a.accountId} -> ${a.healthFactor.mul(100).toFixed(2)}%`
-      )
+      accounts
+        .filter((a) => a.healthFactor.lt(2))
+        .map((a) => `${a.accountId} -> ${a.healthFactor.mul(100).toFixed(2)}%`)
     );
     // console.log(JSON.stringify(accounts, undefined, 2));
 
@@ -77,7 +77,7 @@ module.exports = {
       const { liquidationAction, totalPricedProfit } = computeLiquidation(
         accountsWithDebt[0]
       );
-      if (totalPricedProfit.gt(Big(10).div(100))) {
+      if (totalPricedProfit.gt(Big(2).div(100))) {
         console.log("Executing liquidation");
         const msg = JSON.stringify({
           Execute: {
