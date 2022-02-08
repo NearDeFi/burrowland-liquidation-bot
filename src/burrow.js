@@ -73,11 +73,14 @@ module.exports = {
       return b.discount.cmp(a.discount);
     });
 
-    if (accountsWithDebt.length > 0 && liquidate) {
-      const { liquidationAction, totalPricedProfit } = computeLiquidation(
-        accountsWithDebt[0]
-      );
-      if (totalPricedProfit.gt(Big(2).div(100))) {
+    if (liquidate) {
+      for (let i = 0; i < accountsWithDebt.length; ++i) {
+        const { liquidationAction, totalPricedProfit } = computeLiquidation(
+          accountsWithDebt[i]
+        );
+        if (totalPricedProfit.lte(Big(2).div(100))) {
+          continue;
+        }
         console.log("Executing liquidation");
         const msg = JSON.stringify({
           Execute: {
@@ -97,8 +100,7 @@ module.exports = {
           Big(10).pow(12).mul(300).toFixed(0),
           "1"
         );
-      } else {
-        console.log("The liquidation profit is too small");
+        break;
       }
     }
 
