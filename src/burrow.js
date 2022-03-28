@@ -78,7 +78,7 @@ module.exports = {
         const { liquidationAction, totalPricedProfit } = computeLiquidation(
           accountsWithDebt[i]
         );
-        if (totalPricedProfit.lte(Big(2).div(100))) {
+        if (totalPricedProfit.lte(Big(25).div(100))) {
           continue;
         }
         console.log("Executing liquidation");
