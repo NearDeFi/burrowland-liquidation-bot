@@ -12,7 +12,7 @@ module.exports = {
           explorerUrl: "https://explorer.mainnet.near.org",
           refFinanceContractId: "v2.ref-finance.near",
           priceOracleContractId: "priceoracle.near",
-          burrowContractId: "contract.beta.burrow.near",
+          burrowContractId: "contract.main.burrow.near",
           accountId: process.env.NEAR_ACCOUNT_ID,
         };
       case "development":
