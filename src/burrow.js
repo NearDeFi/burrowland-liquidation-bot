@@ -31,7 +31,7 @@ module.exports = {
     }, {});
     // console.log(assets);
 
-    const [rawPriceData, numAccounts] = (
+    const [rawPriceData, numAccountsStr] = (
       await Promise.all([
         priceOracleContract.get_price_data({
           asset_ids: Object.keys(assets),
@@ -39,6 +39,7 @@ module.exports = {
         burrowContract.get_num_accounts(),
       ])
     ).map(keysToCamel);
+    const numAccounts = parseInt(numAccountsStr);
 
     const prices = parsePriceData(rawPriceData);
 
@@ -48,7 +49,7 @@ module.exports = {
     const promises = [];
     for (let i = 0; i < numAccounts; i += limit) {
       promises.push(
-        burrowContract.get_accounts_paged({ from_index: i, limit })
+        burrowContract.get_accounts_paged({ from_index: i, limit: i + limit })
       );
     }
     const accounts = (await Promise.all(promises))
