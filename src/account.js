@@ -98,6 +98,8 @@ const computeLiquidation = (account) => {
 
   let collateralIndex = 0;
   let borrowedIndex = 0;
+  const origHealth = account.healthFactor;
+  const origDiscount = account.discount;
   const discountMul = Big(1).sub(account.discount);
   const maxHealthFactor = Big(995).div(1000);
   const minPricedBalance = Big(1).div(100);
@@ -145,13 +147,13 @@ const computeLiquidation = (account) => {
     const collateralPricedAmount = pricedAmount.div(discountMul);
 
     const pricedProfit = collateralPricedAmount.sub(pricedAmount);
-    console.log(
-      `Profit $${collateralPricedAmount.toFixed(2)} of ${
-        collateral.tokenId
-      } -> $${pricedAmount.toFixed(2)} of ${
-        borrowed.tokenId
-      }: $${pricedProfit.toFixed(2)}`
-    );
+    // console.log(
+    //   `Profit $${collateralPricedAmount.toFixed(2)} of ${
+    //     tokenIdToName(collateral.tokenId)
+    //   } -> $${pricedAmount.toFixed(2)} of ${
+    //     tokenIdToName(borrowed.tokenId)
+    //   }: $${pricedProfit.toFixed(2)}`
+    // );
     totalPricedProfit = totalPricedProfit.add(pricedProfit);
 
     const collateralAmount = collateralPricedAmount
@@ -223,12 +225,16 @@ const computeLiquidation = (account) => {
 
     recomputeAccountDiscount(account);
   }
+  // console.log(
+  //   `After liq: ${account.accountId} -> health ${account.healthFactor
+  //     .mul(100)
+  //     .toFixed(2)}% discount ${account.discount.mul(100).toFixed(2)}%`
+  // );
   console.log(
-    `After liq: ${account.accountId} -> health ${account.healthFactor
+    `Maybe liq ${account.accountId} -> discount ${origDiscount
       .mul(100)
-      .toFixed(2)}% discount ${account.discount.mul(100).toFixed(2)}%`
+      .toFixed(2)}% -> profit $${totalPricedProfit.toFixed(3)}`
   );
-  console.log(`Total profit: $${totalPricedProfit.toFixed(3)}`);
 
   // Adjusting collateralAssets amounts.
   collateralAssets.forEach((a) => {
@@ -249,10 +255,13 @@ const computeLiquidation = (account) => {
       amount: a.amount.toFixed(0),
     })),
   };
-  console.log(liquidationAction);
+  // console.log(liquidationAction);
   return {
     liquidationAction,
     totalPricedProfit,
+    origDiscount,
+    origHealth,
+    health: account.healthFactor,
   };
 };
 

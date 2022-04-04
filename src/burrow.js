@@ -65,10 +65,13 @@ module.exports = {
       accounts
         .filter((a) => a.healthFactor.lt(2))
         .map((a) => `${a.accountId} -> ${a.healthFactor.mul(100).toFixed(2)}%`)
+        .slice(0, 10)
     );
     // console.log(JSON.stringify(accounts, undefined, 2));
 
-    const accountsWithDebt = accounts.filter((a) => a.discount.gt(0));
+    const accountsWithDebt = accounts.filter((a) =>
+      a.discount.gte(NearConfig.minDiscount)
+    );
 
     accountsWithDebt.sort((a, b) => {
       return b.discount.cmp(a.discount);
@@ -76,10 +79,18 @@ module.exports = {
 
     if (liquidate) {
       for (let i = 0; i < accountsWithDebt.length; ++i) {
-        const { liquidationAction, totalPricedProfit } = computeLiquidation(
-          accountsWithDebt[i]
-        );
-        if (totalPricedProfit.lte(Big(25).div(100))) {
+        const {
+          liquidationAction,
+          totalPricedProfit,
+          origDiscount,
+          origHealth,
+          health,
+        } = computeLiquidation(accountsWithDebt[i]);
+        if (
+          totalPricedProfit.lte(NearConfig.minProfit) ||
+          origDiscount.lte(NearConfig.minDiscount) ||
+          origHealth.lte(health)
+        ) {
           continue;
         }
         console.log("Executing liquidation");
@@ -95,7 +106,6 @@ module.exports = {
         await priceOracleContract.oracle_call(
           {
             receiver_id: NearConfig.burrowContractId,
-            asset_ids: Object.keys(assets),
             msg,
           },
           Big(10).pow(12).mul(300).toFixed(0),
