@@ -49,6 +49,12 @@ const assetAdjustedPricedSum = (aa) =>
     Big(0)
   );
 
+const assetPricedSum = (aa) =>
+  aa.reduce(
+    (acc, a) => (a.pricedBalance && acc ? acc.add(a.pricedBalance) : null),
+    Big(0)
+  );
+
 const recomputeAccountDiscount = (account) => {
   if (account.adjustedBorrowedSum && account.adjustedCollateralSum) {
     account.adjustedDebt = account.adjustedBorrowedSum.sub(
@@ -67,10 +73,12 @@ const processAccount = (account, assets, prices) => {
   account.collateral.forEach(
     (a) => (a = processAccountAsset(a, assets, prices, true))
   );
+  account.collateralSum = assetPricedSum(account.collateral);
   account.adjustedCollateralSum = assetAdjustedPricedSum(account.collateral);
   account.borrowed.forEach((a) =>
     processAccountAsset(a, assets, prices, false)
   );
+  account.borrowedSum = assetPricedSum(account.borrowed);
   account.adjustedBorrowedSum = assetAdjustedPricedSum(account.borrowed);
   recomputeAccountDiscount(account);
 

@@ -64,8 +64,13 @@ module.exports = {
     console.log(
       accounts
         .filter((a) => a.healthFactor.lt(2))
-        .map((a) => `${a.accountId} -> ${a.healthFactor.mul(100).toFixed(2)}%`)
-        .slice(0, 10)
+        .map(
+          (a) =>
+            `${a.accountId} -> ${a.healthFactor
+              .mul(100)
+              .toFixed(2)}% -> $${a.borrowedSum.toFixed(2)}`
+        )
+        .slice(0, 20)
     );
     // console.log(JSON.stringify(accounts, undefined, 2));
 
