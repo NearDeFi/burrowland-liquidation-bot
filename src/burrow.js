@@ -72,6 +72,18 @@ module.exports = {
         )
         .slice(0, 20)
     );
+
+    console.log(
+      accounts
+        .sort((a, b) => b.borrowedSum.sub(a.borrowedSum).toNumber())
+        .map(
+          (a) =>
+            `${a.accountId} -> ${a.healthFactor
+              .mul(100)
+              .toFixed(2)}% -> $${a.borrowedSum.toFixed(2)}`
+        )
+        .slice(0, 20)
+    );
     // console.log(JSON.stringify(accounts, undefined, 2));
 
     const accountsWithDebt = accounts.filter((a) =>
@@ -94,7 +106,7 @@ module.exports = {
         if (
           totalPricedProfit.lte(NearConfig.minProfit) ||
           origDiscount.lte(NearConfig.minDiscount) ||
-          origHealth.lte(health)
+          origHealth.gte(health)
         ) {
           continue;
         }
