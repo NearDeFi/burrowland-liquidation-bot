@@ -37,6 +37,7 @@ module.exports = {
     })();
     config.minProfit = Big(process.env.MIN_PROFIT || "0.25");
     config.minDiscount = Big(process.env.MIN_DISCOUNT || "0.01");
+    config.showWhales = !!process.env.SHOW_WHALES;
     return config;
   },
 };
