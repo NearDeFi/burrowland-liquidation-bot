@@ -8,6 +8,7 @@ const parseAccountAsset = (a) => {
   return {
     tokenId: a.tokenId,
     shares: Big(a.shares),
+    balance: a.balance ? Big(a.balance) : null,
   };
 };
 
@@ -16,18 +17,22 @@ const parseAccount = (a) => {
     accountId: a.accountId,
     collateral: a.collateral.map(parseAccountAsset),
     borrowed: a.borrowed.map(parseAccountAsset),
+    supplied: a.supplied?.map(parseAccountAsset),
   };
 };
 
 const processAccountAsset = (a, assets, prices, supplied) => {
   const asset = assets[a.tokenId];
   const pool = supplied ? asset.supplied : asset.borrowed;
-  const price = prices.prices[a.tokenId];
+  const price = prices?.prices[a.tokenId];
   a.asset = asset;
   a.price = price;
   a.balance = pool.balance
     .mul(a.shares)
     .div(pool.shares)
+    .round(0, supplied ? 0 : 3);
+  a.tokenBalance = a.balance
+    .div(Big(10).pow(asset.config.extraDecimals))
     .round(0, supplied ? 0 : 3);
   a.pricedBalance = price
     ? a.balance
@@ -78,6 +83,9 @@ const processAccount = (account, assets, prices) => {
   account.borrowed.forEach((a) =>
     processAccountAsset(a, assets, prices, false)
   );
+  account.supplied?.forEach((a) =>
+    processAccountAsset(a, assets, prices, true)
+  );
   account.borrowedSum = assetPricedSum(account.borrowed);
   account.adjustedBorrowedSum = assetAdjustedPricedSum(account.borrowed);
   recomputeAccountDiscount(account);
@@ -85,7 +93,10 @@ const processAccount = (account, assets, prices) => {
   return account;
 };
 
-const computeLiquidation = (account) => {
+const computeLiquidation = (
+  account,
+  maxLiquidationAmount = Big(10).pow(18)
+) => {
   // When liquidating, it's beneficial to take collateral with higher volatilityRatio first, because
   // it will decrease the adjustedCollateralSum less. Similarly it's more beneficial to
   // repay debt with higher volatilityRatio first, because it'll decrease adjustedBorrowedSum less.
@@ -112,10 +123,12 @@ const computeLiquidation = (account) => {
   const maxHealthFactor = Big(995).div(1000);
   const minPricedBalance = Big(1).div(100);
   let totalPricedProfit = Big(0);
+  let totalPricedAmount = Big(0);
   while (
     collateralIndex < account.collateral.length &&
     borrowedIndex < account.borrowed.length &&
-    account.healthFactor.lt(maxHealthFactor)
+    account.healthFactor.lt(maxHealthFactor) &&
+    totalPricedAmount.lt(maxLiquidationAmount)
   ) {
     const collateral = account.collateral[collateralIndex];
 
@@ -133,8 +146,8 @@ const computeLiquidation = (account) => {
 
     const discountedPricedBalance = collateral.pricedBalance.mul(discountMul);
     const maxPricedAmount = bigMin(
-      discountedPricedBalance,
-      borrowed.pricedBalance
+      bigMin(discountedPricedBalance, borrowed.pricedBalance),
+      maxLiquidationAmount.sub(totalPricedAmount)
     );
     // Need to compute pricedAmount that the new health factor still less than 100%
     // adjColSum - X / discountMul * col_vol(60%) = adjBorSum - X / bor_vol(95%)
@@ -151,6 +164,7 @@ const computeLiquidation = (account) => {
       : maxPricedAmount.mul(2);
 
     const pricedAmount = bigMin(maxHealthAmount, maxPricedAmount);
+    totalPricedAmount = totalPricedAmount.add(pricedAmount);
 
     const collateralPricedAmount = pricedAmount.div(discountMul);
 
@@ -263,9 +277,20 @@ const computeLiquidation = (account) => {
       amount: a.amount.toFixed(0),
     })),
   };
+  const actions = {
+    Execute: {
+      actions: [
+        ...liquidationAction.in_assets.map((Borrow) => ({ Borrow })),
+        {
+          Liquidate: liquidationAction,
+        },
+      ],
+    },
+  };
+
   // console.log(liquidationAction);
   return {
-    liquidationAction,
+    actions,
     totalPricedProfit,
     origDiscount,
     origHealth,

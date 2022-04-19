@@ -12,6 +12,6 @@ DATE=$(date "+%Y_%m_%d")
 while :
 do
   date | tee -a logs/logs_$DATE.txt
-  /usr/local/bin/node ./src/main.js 2>&1 | tee -a logs/logs_$DATE.txt
+  /usr/local/bin/node ./src/liquidate.js 2>&1 | tee -a logs/logs_$DATE.txt
   sleep 5
 done

@@ -15,6 +15,7 @@ module.exports = {
             priceOracleContractId: "priceoracle.near",
             burrowContractId: "contract.main.burrow.near",
             accountId: process.env.NEAR_ACCOUNT_ID,
+            wrapNearAccountId: "wrap.near",
           };
         case "development":
         case "testnet":
@@ -28,6 +29,7 @@ module.exports = {
             priceOracleContractId: "priceoracle.testnet",
             burrowContractId: "contract.1638481328.burrow.testnet",
             accountId: process.env.NEAR_ACCOUNT_ID,
+            wrapNearAccountId: "wrap.testnet",
           };
         default:
           throw Error(
@@ -35,9 +37,15 @@ module.exports = {
           );
       }
     })();
-    config.minProfit = Big(process.env.MIN_PROFIT || "0.25");
-    config.minDiscount = Big(process.env.MIN_DISCOUNT || "0.01");
+    config.minProfit = Big(process.env.MIN_PROFIT || "1.0");
+    config.minDiscount = Big(process.env.MIN_DISCOUNT || "0.025");
     config.showWhales = !!process.env.SHOW_WHALES;
+    config.minSwapAmount = Big(process.env.MIN_SWAP_AMOUNT || "10");
+    config.minRepayAmount = Big(process.env.MIN_SWAP_AMOUNT || "0.5");
+    config.maxSlippage = Big(process.env.MAX_SLIPPAGE || "0.25");
+    config.maxLiquidationAmount = Big(
+      process.env.MAX_LIQUIDATION_AMOUNT || "20000"
+    );
     return config;
   },
 };

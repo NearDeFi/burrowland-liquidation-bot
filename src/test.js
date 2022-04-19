@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const nearAPI = require("near-api-js");
-const { initNear } = require("./near");
+const { initNear } = require("./libs/near");
 const Big = require("big.js");
 const _ = require("lodash");
 const fs = require("fs");
@@ -10,14 +10,14 @@ const {
   parseTimestamp,
   parseRatio,
   parseRate,
-} = require("./utils");
-const { parseAsset } = require("./asset");
-const { parsePriceData } = require("./priceData");
+} = require("./libs/utils");
+const { parseAsset } = require("./libs/asset");
+const { parsePriceData } = require("./libs/priceData");
 const {
   parseAccount,
   processAccount,
   computeLiquidation,
-} = require("./account");
+} = require("./libs/account");
 
 Big.DP = 27;
 

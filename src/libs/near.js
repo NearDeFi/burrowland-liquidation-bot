@@ -7,28 +7,35 @@ const path = require("path");
 const NearConfig = getConfig(process.env.NEAR_ENV || "development");
 
 module.exports = {
-  initNear: async (loadAccount) => {
+  initNear: async (loadAccount, accountPath) => {
     const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
 
     let near;
     let account;
 
     if (loadAccount) {
-      const keyPath = path.join(
+      const keyPath =
+        accountPath ||
+        path.join(
           os.homedir(),
           ".near-credentials",
           NearConfig.networkId,
           NearConfig.accountId + ".json"
-      );
+        );
       near = await nearAPI.connect(
-          Object.assign({ keyPath, deps: { keyStore } }, NearConfig)
+        Object.assign({ keyPath, deps: { keyStore } }, NearConfig)
       );
       account = new nearAPI.Account(near.connection, NearConfig.accountId);
-    }
-    else {
+    } else {
       const nearRpc = new nearAPI.providers.JsonRpcProvider(NearConfig.nodeUrl);
-      account = new nearAPI.Account({provider: nearRpc,
-        networkId:  NearConfig.networkId, signer:  NearConfig.accountId},  NearConfig.accountId);
+      account = new nearAPI.Account(
+        {
+          provider: nearRpc,
+          networkId: NearConfig.networkId,
+          signer: NearConfig.accountId,
+        },
+        NearConfig.accountId
+      );
     }
 
     const tokenContract = (tokenAccountId) =>

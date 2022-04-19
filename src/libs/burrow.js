@@ -1,6 +1,4 @@
 const Big = require("big.js");
-const _ = require("lodash");
-const fs = require("fs");
 const { keysToCamel } = require("./utils");
 const { parseAsset } = require("./asset");
 const { parsePriceData } = require("./priceData");
@@ -9,20 +7,13 @@ const {
   processAccount,
   computeLiquidation,
 } = require("./account");
+const { Near } = require("near-api-js");
 
 Big.DP = 27;
 
 module.exports = {
   main: async (nearObjects, liquidate) => {
-    const {
-      near,
-      account,
-      tokenContract,
-      refFinanceContract,
-      burrowContract,
-      priceOracleContract,
-      NearConfig,
-    } = nearObjects;
+    const { burrowContract, priceOracleContract, NearConfig } = nearObjects;
 
     const rawAssets = keysToCamel(await burrowContract.get_assets_paged());
     const assets = rawAssets.reduce((assets, [assetId, asset]) => {
@@ -98,13 +89,11 @@ module.exports = {
 
     if (liquidate) {
       for (let i = 0; i < accountsWithDebt.length; ++i) {
-        const {
-          liquidationAction,
-          totalPricedProfit,
-          origDiscount,
-          origHealth,
-          health,
-        } = computeLiquidation(accountsWithDebt[i]);
+        const { actions, totalPricedProfit, origDiscount, origHealth, health } =
+          computeLiquidation(
+            accountsWithDebt[i],
+            NearConfig.maxLiquidationAmount
+          );
         if (
           totalPricedProfit.lte(NearConfig.minProfit) ||
           origDiscount.lte(NearConfig.minDiscount) ||
@@ -113,15 +102,7 @@ module.exports = {
           continue;
         }
         console.log("Executing liquidation");
-        const msg = JSON.stringify({
-          Execute: {
-            actions: [
-              {
-                Liquidate: liquidationAction,
-              },
-            ],
-          },
-        });
+        const msg = JSON.stringify(actions);
         await priceOracleContract.oracle_call(
           {
             receiver_id: NearConfig.burrowContractId,
