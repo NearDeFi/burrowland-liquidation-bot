@@ -40,9 +40,9 @@ module.exports = {
     config.minProfit = Big(process.env.MIN_PROFIT || "1.0");
     config.minDiscount = Big(process.env.MIN_DISCOUNT || "0.025");
     config.showWhales = !!process.env.SHOW_WHALES;
-    config.minSwapAmount = Big(process.env.MIN_SWAP_AMOUNT || "0.1");
+    config.minSwapAmount = Big(process.env.MIN_SWAP_AMOUNT || "1");
     config.minRepayAmount = Big(process.env.MIN_REPAY_AMOUNT || "0.5");
-    config.maxSlippage = Big(process.env.MAX_SLIPPAGE || "0.25");
+    config.maxSlippage = Big(process.env.MAX_SLIPPAGE || "0.5");
     config.maxLiquidationAmount = Big(
       process.env.MAX_LIQUIDATION_AMOUNT || "20000"
     );

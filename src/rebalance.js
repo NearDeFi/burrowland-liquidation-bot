@@ -71,7 +71,6 @@ async function main(nearObjects, rebalance) {
     return main(nearObjects, rebalance);
   }
 
-  // TODO: Attempt to sell non-sold tokens.
   for (let i = 0; i < burrowAccount.supplied.length; ++i) {
     const s = burrowAccount.supplied[i];
     if (s.pricedBalance?.gt(NearConfig.minSwapAmount)) {
@@ -120,9 +119,32 @@ async function main(nearObjects, rebalance) {
       return main(nearObjects, rebalance);
     }
   }
+
+  // Attempting to sell non-sold tokens (e.g. if the ref selling failed last time)
+  let tokenIds = Object.keys(assets);
+  for (let i = 0; i < tokenIds.length; ++i) {
+    const tokenId = tokenIds[i];
+    if (tokenId === NearConfig.wrapNearAccountId) {
+      // Don't attempt sell wNEAR
+      continue;
+    }
+    const token = tokenContract(tokenId);
+    const balance = Big(
+      await token.ft_balance_of({ account_id: NearConfig.accountId })
+    );
+    const price = prices?.prices[tokenId];
+    const pricedBalance = price
+      ? balance.mul(price.multiplier).div(Big(10).pow(price.decimals))
+      : null;
+    if (pricedBalance?.gt(NearConfig.minSwapAmount)) {
+      console.log(`Selling ${tokenId} amount ${balance.toFixed(0)}`);
+      // Swapping this asset for wNEAR
+      await refSell(nearObjects, tokenId, balance);
+      return main(nearObjects, rebalance);
+    }
+  }
 }
 
-// TODO: Add custom accountPath for rebalancing with a different key
 initNear(true, process.env.KEY_PATH || null).then((nearObject) =>
   main(nearObject, true)
 );
