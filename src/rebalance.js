@@ -123,4 +123,6 @@ async function main(nearObjects, rebalance) {
 }
 
 // TODO: Add custom accountPath for rebalancing with a different key
-initNear(true).then((nearObject) => main(nearObject, true));
+initNear(true, process.env.KEY_PATH || null).then((nearObject) =>
+  main(nearObject, true)
+);
