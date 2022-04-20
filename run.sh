@@ -4,8 +4,9 @@ mkdir -p logs
 
 export NEAR_ENV=mainnet
 export NEAR_ACCOUNT_ID=$YOUR_ACCOUNT_ID
-export MIN_PROFIT=0.25
-export MIN_DISCOUNT=0.01
+export MIN_PROFIT=1
+export MIN_DISCOUNT=0.05
+export MAX_LIQUIDATION_AMOUNT=20000
 
 cd $(dirname "$0")
 DATE=$(date "+%Y_%m_%d")

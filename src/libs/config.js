@@ -41,7 +41,7 @@ module.exports = {
     config.minDiscount = Big(process.env.MIN_DISCOUNT || "0.025");
     config.showWhales = !!process.env.SHOW_WHALES;
     config.minSwapAmount = Big(process.env.MIN_SWAP_AMOUNT || "0.1");
-    config.minRepayAmount = Big(process.env.MIN_SWAP_AMOUNT || "0.5");
+    config.minRepayAmount = Big(process.env.MIN_REPAY_AMOUNT || "0.5");
     config.maxSlippage = Big(process.env.MAX_SLIPPAGE || "0.25");
     config.maxLiquidationAmount = Big(
       process.env.MAX_LIQUIDATION_AMOUNT || "20000"
