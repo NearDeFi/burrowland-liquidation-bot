@@ -2,6 +2,9 @@
 
 const Big = require("big.js");
 
+const SimplePool = "SIMPLE_POOL";
+const StablePool = "STABLE_SWAP";
+
 const usdTokensDecimals = {
   "6b175474e89094c44da98b954eedeac495271d0f.factory.bridge.near": 18,
   "a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near": 6,
@@ -69,7 +72,7 @@ function stablePoolGetInverseReturn(pool, tokenOut, amountOut, tokenIn) {
     .round(0, 0);
 }
 
-export function getRefReturn(pool, tokenIn, amountIn, tokenOut) {
+function getRefReturn(pool, tokenIn, amountIn, tokenOut) {
   if (!amountIn || amountIn.eq(0)) {
     return Big(0);
   }
@@ -92,7 +95,7 @@ export function getRefReturn(pool, tokenIn, amountIn, tokenOut) {
     .round(0, 0);
 }
 
-export function getRefInverseReturn(pool, tokenOut, amountOut, tokenIn) {
+function getRefInverseReturn(pool, tokenOut, amountOut, tokenIn) {
   if (!amountOut || amountOut.eq(0)) {
     return Big(0);
   }
