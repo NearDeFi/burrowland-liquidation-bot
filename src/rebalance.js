@@ -126,18 +126,22 @@ async function main(nearObjects, rebalance) {
       // Buying this asset for wNEAR
       await refBuy(nearObjects, b.tokenId, b.tokenBalance);
 
-      console.log(
-        `Depositing ${b.tokenId} amount ${b.tokenBalance.toFixed(0)}`
+      const balance = bigMin(
+        Big(await token.ft_balance_of({ account_id: NearConfig.accountId })),
+        b.tokenBalance
       );
-      await token.ft_transfer_call(
-        {
-          receiver_id: NearConfig.burrowContractId,
-          amount: b.tokenBalance.toFixed(0),
-          msg: "",
-        },
-        Big(10).pow(12).mul(300).toFixed(0),
-        "1"
-      );
+      if (balance.gt(0)) {
+        console.log(`Depositing ${b.tokenId} amount ${balance.toFixed(0)}`);
+        await token.ft_transfer_call(
+          {
+            receiver_id: NearConfig.burrowContractId,
+            amount: balance.toFixed(0),
+            msg: "",
+          },
+          Big(10).pow(12).mul(300).toFixed(0),
+          "1"
+        );
+      }
       return main(nearObjects, rebalance);
     }
   }
