@@ -280,7 +280,12 @@ const computeLiquidation = (
   const actions = {
     Execute: {
       actions: [
-        ...liquidationAction.in_assets.map((Borrow) => ({ Borrow })),
+        ...liquidationAction.in_assets.map(({ amount, token_id }) => ({
+          Borrow: {
+            token_id,
+            amount: Big(amount).add(1000).toFixed(0), // Add small fraction to avoid rounding errors with shares.
+          },
+        })),
         {
           Liquidate: liquidationAction,
         },
