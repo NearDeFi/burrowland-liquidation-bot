@@ -87,13 +87,15 @@ module.exports = {
       return b.discount.cmp(a.discount);
     });
 
+    let bestLiquidation = null;
     if (liquidate) {
       for (let i = 0; i < accountsWithDebt.length; ++i) {
-        const { actions, totalPricedProfit, origDiscount, origHealth, health } =
-          computeLiquidation(
-            accountsWithDebt[i],
-            NearConfig.maxLiquidationAmount
-          );
+        const liquidation = computeLiquidation(
+          accountsWithDebt[i],
+          NearConfig.maxLiquidationAmount
+        );
+        const { totalPricedProfit, origDiscount, origHealth, health } =
+          liquidation;
         if (
           totalPricedProfit.lte(NearConfig.minProfit) ||
           origDiscount.lte(NearConfig.minDiscount) ||
@@ -101,8 +103,16 @@ module.exports = {
         ) {
           continue;
         }
+        if (
+          !bestLiquidation ||
+          totalPricedProfit.gt(bestLiquidation.totalPricedProfit)
+        ) {
+          bestLiquidation = liquidation;
+        }
+      }
+      if (bestLiquidation) {
         console.log("Executing liquidation");
-        const msg = JSON.stringify(actions);
+        const msg = JSON.stringify(bestLiquidation.actions);
         await priceOracleContract.oracle_call(
           {
             receiver_id: NearConfig.burrowContractId,
@@ -111,7 +121,6 @@ module.exports = {
           Big(10).pow(12).mul(300).toFixed(0),
           "1"
         );
-        break;
       }
     }
 
