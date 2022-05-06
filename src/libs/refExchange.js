@@ -1,24 +1,43 @@
 //! The code below is based on skyward finance https://github.com/skyward-finance/app-ui.
 
 const Big = require("big.js");
+const { loadJson, saveJson, keysToCamel } = require("./utils");
 
 const SimplePool = "SIMPLE_POOL";
 const StablePool = "STABLE_SWAP";
+const TokenCacheFilename = "./data/tokens.json";
 
-const usdTokensDecimals = {
+const tokenDecimals = {
   "6b175474e89094c44da98b954eedeac495271d0f.factory.bridge.near": 18,
   "a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near": 6,
   "dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near": 6,
   usn: 18,
+  "2260fac5e5542a773aa44fbcfedf7c193bc2c599.factory.bridge.near": 8,
+  "0316eb71485b0ab14103307bf65a021042c6d380.factory.bridge.near": 18,
 };
 
-const usdTokens = Object.entries(usdTokensDecimals).reduce(
-  (acc, [key, value]) => {
-    acc[key] = Big(10).pow(value);
-    return acc;
-  },
-  {}
-);
+let tokenCache = null;
+
+async function fetchUsdTokensDecimals(tokenContract, tokenId) {
+  if (tokenId in tokenDecimals) {
+    return;
+  }
+  if (!tokenCache) {
+    tokenCache = loadJson(TokenCacheFilename) || {};
+  }
+  if (!(tokenId in tokenCache)) {
+    try {
+      const token = tokenContract(tokenId);
+      tokenCache[tokenId] = keysToCamel(await token.ft_metadata());
+    } catch (e) {
+      console.log("Failed to fetch metadata for token", tokenId);
+      tokenCache[tokenId] = false;
+    } finally {
+      saveJson(tokenCache, TokenCacheFilename);
+    }
+  }
+  tokenDecimals[tokenId] = tokenCache[tokenId]?.decimals || 18;
+}
 
 function stablePoolGetReturn(pool, tokenIn, amountIn, tokenOut) {
   let tokenInIndex = pool.tt.indexOf(tokenIn);
@@ -26,7 +45,7 @@ function stablePoolGetReturn(pool, tokenIn, amountIn, tokenOut) {
   // Sub 1
   const cAmountIn = amountIn
     .sub(1)
-    .mul(Big(10).pow(18 - usdTokensDecimals[tokenIn]));
+    .mul(Big(10).pow(18 - tokenDecimals[tokenIn]));
 
   let y = stablePoolComputeY(
     pool,
@@ -40,7 +59,7 @@ function stablePoolGetReturn(pool, tokenIn, amountIn, tokenOut) {
   let amountSwapped = dy.sub(tradeFee);
 
   return amountSwapped
-    .div(Big(10).pow(18 - usdTokensDecimals[tokenOut]))
+    .div(Big(10).pow(18 - tokenDecimals[tokenOut]))
     .round(0, 0);
 }
 
@@ -53,7 +72,7 @@ function stablePoolGetInverseReturn(pool, tokenOut, amountOut, tokenIn) {
     .div(10000 - pool.fee)
     .round(0, 0);
   const cAmountOut = amountOutWithFee.mul(
-    Big(10).pow(18 - usdTokensDecimals[tokenOut])
+    Big(10).pow(18 - tokenDecimals[tokenOut])
   );
 
   let y = stablePoolComputeY(
@@ -67,7 +86,7 @@ function stablePoolGetInverseReturn(pool, tokenOut, amountOut, tokenIn) {
 
   // Adding 1 for internal pool rounding
   return cAmountIn
-    .div(Big(10).pow(18 - usdTokensDecimals[tokenIn]))
+    .div(Big(10).pow(18 - tokenDecimals[tokenIn]))
     .add(1)
     .round(0, 0);
 }
@@ -191,7 +210,7 @@ function stablePoolComputeY(pool, xCAmount, indexX, indexY) {
 }
 
 async function prepareRef(nearObjects) {
-  const { near, refFinanceContract, NearConfig } = nearObjects;
+  const { near, refFinanceContract, NearConfig, tokenContract } = nearObjects;
 
   const limit = 250;
   // Limit pools for now until we need other prices.
@@ -222,7 +241,8 @@ async function prepareRef(nearObjects) {
   };
 
   const pools = {};
-  rawPools.forEach((pool, i) => {
+  for (let i = 0; i < rawPools.length; ++i) {
+    const pool = rawPools[i];
     if (pool.pool_kind === SimplePool || pool.pool_kind === StablePool) {
       const tt = pool.token_account_ids;
       const p = {
@@ -242,8 +262,11 @@ async function prepareRef(nearObjects) {
         amp: pool.amp || 0,
       };
       if (p.stable) {
+        for (let j = 0; j < tt.length; ++j) {
+          await fetchUsdTokensDecimals(tokenContract, tt[j]);
+        }
         p.cAmounts = [...pool.amounts].map((amount, idx) => {
-          let factor = Big(10).pow(18 - usdTokensDecimals[tt[idx]]);
+          let factor = Big(10).pow(18 - tokenDecimals[tt[idx]]);
           return Big(amount).mul(factor);
         });
         p.nCoins = p.cAmounts.length;
@@ -257,7 +280,7 @@ async function prepareRef(nearObjects) {
         p.tt.forEach((t) => addPools(t, p));
       }
     }
-  });
+  }
 
   return {
     pools,

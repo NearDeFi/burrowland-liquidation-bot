@@ -1,4 +1,5 @@
 const Big = require("big.js");
+const fs = require("fs");
 
 const toCamel = (s) => {
   return s.replace(/([-_][a-z])/gi, ($1) => {
@@ -35,10 +36,33 @@ const parseTimestamp = (s) => parseFloat(s) / 1e6;
 
 const bigMin = (a, b) => (a.lt(b) ? a : b);
 
+function loadJson(filename, ignoreError = true) {
+  try {
+    let rawData = fs.readFileSync(filename);
+    return JSON.parse(rawData);
+  } catch (e) {
+    if (!ignoreError) {
+      console.error("Failed to load JSON:", filename, e);
+    }
+  }
+  return null;
+}
+
+function saveJson(json, filename) {
+  try {
+    const data = JSON.stringify(json);
+    fs.writeFileSync(filename, data);
+  } catch (e) {
+    console.error("Failed to save JSON:", filename, e);
+  }
+}
+
 module.exports = {
   bigMin,
   keysToCamel,
   parseRate,
   parseRatio,
   parseTimestamp,
+  loadJson,
+  saveJson,
 };
