@@ -92,7 +92,8 @@ module.exports = {
       for (let i = 0; i < accountsWithDebt.length; ++i) {
         const liquidation = computeLiquidation(
           accountsWithDebt[i],
-          NearConfig.maxLiquidationAmount
+          NearConfig.maxLiquidationAmount,
+          NearConfig.maxWithdrawCount
         );
         const { totalPricedProfit, origDiscount, origHealth, health } =
           liquidation;

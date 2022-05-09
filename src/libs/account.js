@@ -95,7 +95,8 @@ const processAccount = (account, assets, prices) => {
 
 const computeLiquidation = (
   account,
-  maxLiquidationAmount = Big(10).pow(18)
+  maxLiquidationAmount = Big(10).pow(18),
+  maxWithdrawCount = 0
 ) => {
   // When liquidating, it's beneficial to take collateral with higher volatilityRatio first, because
   // it will decrease the adjustedCollateralSum less. Similarly it's more beneficial to
@@ -289,6 +290,14 @@ const computeLiquidation = (
         {
           Liquidate: liquidationAction,
         },
+        ...liquidationAction.out_assets
+          .slice(0, maxWithdrawCount)
+          .map(({ amount, token_id }) => ({
+            Withdraw: {
+              token_id,
+              max_amount: amount,
+            },
+          })),
       ],
     },
   };

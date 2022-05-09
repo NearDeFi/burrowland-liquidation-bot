@@ -43,24 +43,63 @@ async function main(nearObjects, rebalance) {
 
   const repayingActions = [];
   // Trying to repay first
-  burrowAccount.borrowed
-    .filter((b) => b.pricedBalance?.gt(NearConfig.minRepayAmount))
-    .forEach((b) => {
-      const s = burrowAccount.supplied.find((s) => s.tokenId === b.tokenId);
-      if (s && s.pricedBalance.gt(NearConfig.minRepayAmount)) {
-        const amount = bigMin(b.balance, s.balance);
-        console.log(`Repaying ${b.tokenId} amount ${amount.toFixed(0)}`);
-        repayingActions.push({
-          Repay: {
-            token_id: b.tokenId,
-            max_amount: s.balance.toFixed(0),
+  for (let i = 0; i < burrowAccount.borrowed.length; ++i) {
+    const b = burrowAccount.borrowed[i];
+    if (!b.pricedBalance?.gte(NearConfig.minRepayAmount)) {
+      continue;
+    }
+    const s = burrowAccount.supplied.find((s) => s.tokenId === b.tokenId);
+    const token = tokenContract(b.tokenId);
+    const tokenBalance = Big(
+      await token.ft_balance_of({ account_id: NearConfig.accountId })
+    );
+    if (tokenBalance.gt(0)) {
+      const suppliedBalance = s?.balance || Big(0);
+      const mul = Big(10).pow(b.asset.config.extraDecimals);
+      const balance = tokenBalance.mul(mul);
+      const depositAmount = bigMin(b.balance.sub(suppliedBalance), balance);
+
+      if (depositAmount.gt(0)) {
+        const amount = depositAmount.div(mul).round(0, 0);
+        // Depositing then maybe repaying
+        console.log(
+          `Depositing ${b.tokenId} amount ${amount.toFixed(0)} and repaying`
+        );
+        await token.ft_transfer_call(
+          {
+            receiver_id: NearConfig.burrowContractId,
+            amount: amount.toFixed(0),
+            msg: JSON.stringify({
+              Execute: {
+                actions: [
+                  {
+                    Repay: {
+                      token_id: b.tokenId,
+                    },
+                  },
+                ],
+              },
+            }),
           },
-        });
+          Big(10).pow(12).mul(300).toFixed(0),
+          "1"
+        );
+        return main(nearObjects, rebalance);
       }
-    });
+    }
+
+    if (s && s.pricedBalance.gt(NearConfig.minRepayAmount)) {
+      const amount = bigMin(b.balance, s.balance);
+      console.log(`Repaying ${b.tokenId} amount ${amount.toFixed(0)}`);
+      repayingActions.push({
+        Repay: {
+          token_id: b.tokenId,
+        },
+      });
+    }
+  }
 
   if (repayingActions.length > 0) {
-    // Going to withdraw and swap
     await burrowContract.execute(
       {
         actions: repayingActions,
@@ -71,82 +110,33 @@ async function main(nearObjects, rebalance) {
     return main(nearObjects, rebalance);
   }
 
+  const withdrawActions = [];
+  // Withdrawing supplied tokens
   for (let i = 0; i < burrowAccount.supplied.length; ++i) {
     const s = burrowAccount.supplied[i];
     if (s.pricedBalance?.gt(NearConfig.minSwapAmount)) {
       console.log(`Withdrawing ${s.tokenId} amount ${s.balance.toFixed(0)}`);
-      // Going to withdraw and swap
-      await burrowContract.execute(
-        {
-          actions: [
-            {
-              Withdraw: {
-                token_id: s.tokenId,
-                amount: s.balance.toFixed(0),
-              },
-            },
-          ],
+      withdrawActions.push({
+        Withdraw: {
+          token_id: s.tokenId,
+          max_amount: s.balance.toFixed(0),
         },
-        Big(10).pow(12).mul(300).toFixed(0),
-        "1"
-      );
-      console.log(`Selling ${s.tokenId} amount ${s.balance.toFixed(0)}`);
-      // Swapping this asset for wNEAR
-      await refSell(nearObjects, s.tokenId, s.tokenBalance);
-      return main(nearObjects, rebalance);
+      });
     }
   }
 
-  // Buying or depositing borrowed assets to repay
-  for (let i = 0; i < burrowAccount.borrowed.length; ++i) {
-    const b = burrowAccount.borrowed[i];
-    if (b.pricedBalance?.gt(NearConfig.minSwapAmount)) {
-      const token = tokenContract(b.tokenId);
-      if (b.tokenId !== NearConfig.wrapNearAccountId) {
-        const balance = Big(
-          await token.ft_balance_of({ account_id: NearConfig.accountId })
-        );
-        if (balance.gt(0)) {
-          // Attempting to deposit it first.
-          console.log(`Depositing ${b.tokenId} amount ${balance.toFixed(0)}`);
-          await token.ft_transfer_call(
-            {
-              receiver_id: NearConfig.burrowContractId,
-              amount: balance.toFixed(0),
-              msg: "",
-            },
-            Big(10).pow(12).mul(300).toFixed(0),
-            "1"
-          );
-          return main(nearObjects, rebalance);
-        }
-      }
-
-      console.log(`Buying ${b.tokenId} amount ${b.balance.toFixed(0)}`);
-      // Buying this asset for wNEAR
-      await refBuy(nearObjects, b.tokenId, b.tokenBalance);
-
-      const balance = bigMin(
-        Big(await token.ft_balance_of({ account_id: NearConfig.accountId })),
-        b.tokenBalance
-      );
-      if (balance.gt(0)) {
-        console.log(`Depositing ${b.tokenId} amount ${balance.toFixed(0)}`);
-        await token.ft_transfer_call(
-          {
-            receiver_id: NearConfig.burrowContractId,
-            amount: balance.toFixed(0),
-            msg: "",
-          },
-          Big(10).pow(12).mul(300).toFixed(0),
-          "1"
-        );
-      }
-      return main(nearObjects, rebalance);
-    }
+  if (withdrawActions.length > 0) {
+    await burrowContract.execute(
+      {
+        actions: withdrawActions,
+      },
+      Big(10).pow(12).mul(300).toFixed(0),
+      "1"
+    );
+    return main(nearObjects, rebalance);
   }
 
-  // Attempting to sell non-sold tokens (e.g. if the ref selling failed last time)
+  // Attempting to sell non-sold tokens
   let tokenIds = Object.keys(assets);
   for (let i = 0; i < tokenIds.length; ++i) {
     const tokenId = tokenIds[i];
@@ -166,6 +156,35 @@ async function main(nearObjects, rebalance) {
       console.log(`Selling ${tokenId} amount ${balance.toFixed(0)}`);
       // Swapping this asset for wNEAR
       await refSell(nearObjects, tokenId, balance);
+      return main(nearObjects, rebalance);
+    }
+  }
+
+  // Buying borrowed assets to repay
+  for (let i = 0; i < burrowAccount.borrowed.length; ++i) {
+    const b = burrowAccount.borrowed[i];
+    if (b.pricedBalance?.gt(NearConfig.minSwapAmount)) {
+      console.log(`Buying ${b.tokenId} amount ${b.balance.toFixed(0)}`);
+      // Buying this asset for wNEAR
+      await refBuy(nearObjects, b.tokenId, b.tokenBalance);
+
+      const token = tokenContract(b.tokenId);
+      const balance = bigMin(
+        Big(await token.ft_balance_of({ account_id: NearConfig.accountId })),
+        b.tokenBalance
+      );
+      if (balance.gt(0)) {
+        console.log(`Depositing ${b.tokenId} amount ${balance.toFixed(0)}`);
+        await token.ft_transfer_call(
+          {
+            receiver_id: NearConfig.burrowContractId,
+            amount: balance.toFixed(0),
+            msg: "",
+          },
+          Big(10).pow(12).mul(300).toFixed(0),
+          "1"
+        );
+      }
       return main(nearObjects, rebalance);
     }
   }
