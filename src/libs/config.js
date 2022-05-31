@@ -47,6 +47,7 @@ module.exports = {
       process.env.MAX_LIQUIDATION_AMOUNT || "20000"
     );
     config.maxWithdrawCount = parseInt(process.env.MAX_WITHDRAW_COUNT || "5");
+    config.forceClose = !!process.env.FORCE_CLOSE;
     return config;
   },
 };

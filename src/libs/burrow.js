@@ -12,7 +12,7 @@ const { Near } = require("near-api-js");
 Big.DP = 27;
 
 module.exports = {
-  main: async (nearObjects, liquidate) => {
+  main: async (nearObjects, { liquidate = false, forceClose = false } = {}) => {
     const { burrowContract, priceOracleContract, NearConfig } = nearObjects;
 
     const rawAssets = keysToCamel(await burrowContract.get_assets_paged());
@@ -122,6 +122,35 @@ module.exports = {
           Big(10).pow(12).mul(300).toFixed(0),
           "1"
         );
+      }
+    }
+    if (forceClose) {
+      for (let i = 0; i < accountsWithDebt.length; ++i) {
+        const account = accountsWithDebt[i];
+        if (account.collateralSum.lt(account.borrowedSum)) {
+          console.log("Executing force closing of account", account.accountId);
+          const msg = JSON.stringify({
+            Execute: {
+              actions: [
+                {
+                  ForceClose: {
+                    account_id: account.accountId,
+                  },
+                },
+              ],
+            },
+          });
+          await priceOracleContract.oracle_call(
+            {
+              receiver_id: NearConfig.burrowContractId,
+              msg,
+            },
+            Big(10).pow(12).mul(300).toFixed(0),
+            "1"
+          );
+
+          return;
+        }
       }
     }
 
