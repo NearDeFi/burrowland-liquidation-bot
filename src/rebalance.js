@@ -59,8 +59,8 @@ async function main(nearObjects, rebalance) {
       const balance = tokenBalance.mul(mul);
       const depositAmount = bigMin(b.balance.sub(suppliedBalance), balance);
 
-      if (depositAmount.gt(0)) {
-        const amount = depositAmount.div(mul).round(0, 0);
+      const amount = depositAmount.div(mul).round(0, 0);
+      if (amount.gt(0)) {
         // Depositing then maybe repaying
         console.log(
           `Depositing ${b.tokenId} amount ${amount.toFixed(0)} and repaying`
@@ -166,9 +166,20 @@ async function main(nearObjects, rebalance) {
     if (b.pricedBalance?.gt(NearConfig.minSwapAmount)) {
       console.log(`Buying ${b.tokenId} amount ${b.balance.toFixed(0)}`);
       // Buying this asset for wNEAR
+      const token = tokenContract(b.tokenId);
+      const storageBalance = await token.storage_balance_of({
+        account_id: NearConfig.accountId,
+      });
+      if (Big(storageBalance?.total || 0).eq(0)) {
+        console.log(`Paying storage for ${b.tokenId}`);
+        await token.storage_deposit(
+          { registration_only: true },
+          Big(10).pow(12).mul(300).toFixed(0),
+          Big(10).pow(23).toFixed(0)
+        );
+      }
       await refBuy(nearObjects, b.tokenId, b.tokenBalance);
 
-      const token = tokenContract(b.tokenId);
       const balance = bigMin(
         Big(await token.ft_balance_of({ account_id: NearConfig.accountId })),
         b.tokenBalance
