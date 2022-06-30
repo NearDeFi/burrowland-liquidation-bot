@@ -5,7 +5,11 @@ const { loadJson, saveJson, keysToCamel } = require("./utils");
 
 const SimplePool = "SIMPLE_POOL";
 const StablePool = "STABLE_SWAP";
+const RatedPool = "RATED_SWAP";
+
 const TokenCacheFilename = "./data/tokens.json";
+
+const OneNear = Big(10).pow(24);
 
 const tokenDecimals = {
   "6b175474e89094c44da98b954eedeac495271d0f.factory.bridge.near": 18,
@@ -14,6 +18,9 @@ const tokenDecimals = {
   usn: 18,
   "2260fac5e5542a773aa44fbcfedf7c193bc2c599.factory.bridge.near": 8,
   "0316eb71485b0ab14103307bf65a021042c6d380.factory.bridge.near": 18,
+  "meta-pool.near": 24,
+  "linear-protocol.near": 24,
+  "wrap.near": 24,
 };
 
 let tokenCache = null;
@@ -45,7 +52,9 @@ function stablePoolGetReturn(pool, tokenIn, amountIn, tokenOut) {
   // Sub 1
   const cAmountIn = amountIn
     .sub(1)
-    .mul(Big(10).pow(18 - tokenDecimals[tokenIn]));
+    .mul(Big(10).pow(18 - tokenDecimals[tokenIn]))
+    .mul(pool.rates[tokenInIndex])
+    .div(OneNear);
 
   let y = stablePoolComputeY(
     pool,
@@ -60,6 +69,8 @@ function stablePoolGetReturn(pool, tokenIn, amountIn, tokenOut) {
 
   return amountSwapped
     .div(Big(10).pow(18 - tokenDecimals[tokenOut]))
+    .mul(OneNear)
+    .div(pool.rates[tokenOutIndex])
     .round(0, 0);
 }
 
@@ -71,9 +82,10 @@ function stablePoolGetInverseReturn(pool, tokenOut, amountOut, tokenIn) {
     .mul(10000)
     .div(10000 - pool.fee)
     .round(0, 0);
-  const cAmountOut = amountOutWithFee.mul(
-    Big(10).pow(18 - tokenDecimals[tokenOut])
-  );
+  const cAmountOut = amountOutWithFee
+    .mul(Big(10).pow(18 - tokenDecimals[tokenOut]))
+    .mul(pool.rates[tokenOutIndex])
+    .div(OneNear);
 
   let y = stablePoolComputeY(
     pool,
@@ -87,6 +99,8 @@ function stablePoolGetInverseReturn(pool, tokenOut, amountOut, tokenIn) {
   // Adding 1 for internal pool rounding
   return cAmountIn
     .div(Big(10).pow(18 - tokenDecimals[tokenIn]))
+    .mul(OneNear)
+    .div(pool.rates[tokenInIndex])
     .add(1)
     .round(0, 0);
 }
@@ -214,10 +228,18 @@ async function prepareRef(nearObjects) {
 
   const limit = 250;
   // Limit pools for now until we need other prices.
-  const numPools = Math.min(
-    10000,
-    await refFinanceContract.get_number_of_pools()
-  );
+  const [rawNumPools, ratedTokens] = await Promise.all([
+    refFinanceContract.get_number_of_pools(),
+    refFinanceContract.list_rated_tokens(),
+  ]);
+
+  const numPools = Math.min(10000, rawNumPools);
+  Object.values(ratedTokens).forEach((r) => {
+    r.rate_price = Big(r.rate_price);
+  });
+  ratedTokens[NearConfig.wrapNearAccountId] = {
+    rate_price: OneNear,
+  };
   const promises = [];
   for (let i = 0; i < numPools; i += limit) {
     promises.push(refFinanceContract.get_pools({ from_index: i, limit }));
@@ -243,10 +265,14 @@ async function prepareRef(nearObjects) {
   const pools = {};
   for (let i = 0; i < rawPools.length; ++i) {
     const pool = rawPools[i];
-    if (pool.pool_kind === SimplePool || pool.pool_kind === StablePool) {
+    if (
+      pool.pool_kind === SimplePool ||
+      pool.pool_kind === StablePool ||
+      pool.pool_kind === RatedPool
+    ) {
       const tt = pool.token_account_ids;
       const p = {
-        stable: pool.pool_kind === StablePool,
+        stable: pool.pool_kind === StablePool || pool.pool_kind === RatedPool,
         index: i,
         tt,
         tokens: tt.reduce((acc, token, tokenIndex) => {
@@ -270,6 +296,28 @@ async function prepareRef(nearObjects) {
           return Big(amount).mul(factor);
         });
         p.nCoins = p.cAmounts.length;
+
+        let shouldSkip = false;
+        if (pool.pool_kind === RatedPool) {
+          p.rates = tt.map((tokenId) => {
+            if (!(tokenId in ratedTokens)) {
+              console.log(
+                `Missing token rate for token ${tokenId} for pool #${i}`
+              );
+              shouldSkip = true;
+            }
+            return ratedTokens[tokenId].rate_price;
+          });
+          if (shouldSkip) {
+            continue;
+          }
+        } else {
+          p.rates = new Array(p.nCoins).fill(OneNear);
+        }
+        p.cAmounts = p.cAmounts.map((cAmount, idx) =>
+          cAmount.mul(p.rates[idx]).div(OneNear)
+        );
+
         p.nn = Big(Math.pow(p.nCoins, p.nCoins));
         p.ann = Big(p.amp).mul(p.nn);
         p.d = stablePoolComputeD(p);
