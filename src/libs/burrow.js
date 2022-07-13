@@ -40,7 +40,7 @@ module.exports = {
     const promises = [];
     for (let i = 0; i < numAccounts; i += limit) {
       promises.push(
-        burrowContract.get_accounts_paged({ from_index: i, limit: i + limit })
+        burrowContract.get_accounts_paged({ from_index: i, limit })
       );
     }
     const accounts = (await Promise.all(promises))
