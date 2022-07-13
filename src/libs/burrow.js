@@ -35,7 +35,8 @@ module.exports = {
     const prices = parsePriceData(rawPriceData);
 
     console.log("Num accounts: ", numAccounts);
-    const limit = 100;
+    // Due to upgrade to 0.7.0, the supplied are returned from state.
+    const limit = 40;
 
     const promises = [];
     for (let i = 0; i < numAccounts; i += limit) {
@@ -45,7 +46,7 @@ module.exports = {
     }
     const accounts = (await Promise.all(promises))
       .flat()
-      .map((a) => processAccount(parseAccount(keysToCamel(a)), assets, prices))
+      .map((a) => processAccount(parseAccount(a), assets, prices))
       .filter((a) => !!a.healthFactor);
 
     accounts.sort((a, b) => {

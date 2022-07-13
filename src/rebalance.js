@@ -4,7 +4,7 @@ const Big = require("big.js");
 const { keysToCamel, bigMin } = require("./libs/utils");
 const { parseAsset } = require("./libs/asset");
 const { parsePriceData } = require("./libs/priceData");
-const { parseAccount, processAccount } = require("./libs/account");
+const { parseAccountDetailed, processAccount } = require("./libs/account");
 const { refSell, refBuy } = require("./libs/refExchange");
 
 Big.DP = 27;
@@ -28,7 +28,7 @@ async function main(nearObjects, rebalance) {
   );
 
   const burrowAccount = processAccount(
-    parseAccount(
+    parseAccountDetailed(
       keysToCamel(
         await burrowContract.get_account({
           account_id: NearConfig.accountId,

@@ -4,7 +4,15 @@ const { bigMin } = require("./utils");
 const volatilityRatioCmp = (a, b) =>
   b.asset.config.volatilityRatio.cmp(a.asset.config.volatilityRatio);
 
-const parseAccountAsset = (a) => {
+const parseAccountAsset = ([tokenId, shares]) => {
+  return {
+    tokenId,
+    shares: Big(shares),
+    balance: null,
+  };
+};
+
+const parseAccountAssetDetailed = (a) => {
   return {
     tokenId: a.tokenId,
     shares: Big(a.shares),
@@ -14,10 +22,19 @@ const parseAccountAsset = (a) => {
 
 const parseAccount = (a) => {
   return {
+    accountId: a.account_id,
+    collateral: Object.entries(a.collateral).map(parseAccountAsset),
+    borrowed: Object.entries(a.borrowed).map(parseAccountAsset),
+    supplied: Object.entries(a.supplied).map(parseAccountAsset),
+  };
+};
+
+const parseAccountDetailed = (a) => {
+  return {
     accountId: a.accountId,
-    collateral: a.collateral.map(parseAccountAsset),
-    borrowed: a.borrowed.map(parseAccountAsset),
-    supplied: a.supplied?.map(parseAccountAsset),
+    collateral: a.collateral.map(parseAccountAssetDetailed),
+    borrowed: a.borrowed.map(parseAccountAssetDetailed),
+    supplied: a.supplied?.map(parseAccountAssetDetailed),
   };
 };
 
@@ -75,8 +92,8 @@ const recomputeAccountDiscount = (account) => {
 };
 
 const processAccount = (account, assets, prices) => {
-  account.collateral.forEach(
-    (a) => (a = processAccountAsset(a, assets, prices, true))
+  account.collateral.forEach((a) =>
+    processAccountAsset(a, assets, prices, true)
   );
   account.collateralSum = assetPricedSum(account.collateral);
   account.adjustedCollateralSum = assetAdjustedPricedSum(account.collateral);
@@ -314,6 +331,7 @@ const computeLiquidation = (
 
 module.exports = {
   parseAccount,
+  parseAccountDetailed,
   processAccount,
   computeLiquidation,
 };
