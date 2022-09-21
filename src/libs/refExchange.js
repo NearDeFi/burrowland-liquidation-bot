@@ -306,7 +306,7 @@ async function prepareRef(nearObjects) {
               );
               shouldSkip = true;
             }
-            return ratedTokens[tokenId].rate_price;
+            return ratedTokens[tokenId]?.rate_price;
           });
           if (shouldSkip) {
             continue;
