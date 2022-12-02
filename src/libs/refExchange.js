@@ -448,7 +448,7 @@ async function executeSwap(nearObjects, swapInfo) {
               min_amount_out:
                 tokenId === swapInfo.outTokenAccountId
                   ? swapInfo.amountOut
-                      .mul(1.0 - NearConfig.maxSlippage)
+                      .mul(Big(100).sub(NearConfig.maxSlippage).div(100))
                       .round(0, 0)
                       .toFixed(0)
                   : "0",

@@ -97,25 +97,51 @@ async function main(nearObjects, rebalance) {
     }
   }
 
-  // Buying borrowed assets to repay
+  // Buying or depositing borrowed assets to repay
   for (let i = 0; i < burrowAccount.borrowed.length; ++i) {
     const b = burrowAccount.borrowed[i];
     if (b.pricedBalance?.gt(NearConfig.minSwapAmount)) {
+      const token = tokenContract(b.tokenId);
+      if (b.tokenId !== NearConfig.wrapNearAccountId) {
+        const balance = Big(
+          await token.ft_balance_of({ account_id: NearConfig.accountId })
+        );
+        if (balance.gt(0)) {
+          // Attempting to deposit it first.
+          console.log(`Depositing ${b.tokenId} amount ${balance.toFixed(0)}`);
+          await token.ft_transfer_call(
+            {
+              receiver_id: NearConfig.burrowContractId,
+              amount: balance.toFixed(0),
+              msg: "",
+            },
+            Big(10).pow(12).mul(300).toFixed(0),
+            "1"
+          );
+          return main(nearObjects, rebalance);
+        }
+      }
+
       console.log(`Buying ${b.tokenId} amount ${b.balance.toFixed(0)}`);
       // Buying this asset for wNEAR
       await refBuy(nearObjects, b.tokenId, b.tokenBalance);
 
-      console.log(`Depositing ${b.tokenId} amount ${b.balance.toFixed(0)}`);
-      const token = tokenContract(b.tokenId);
-      await token.ft_transfer_call(
-        {
-          receiver_id: NearConfig.burrowContractId,
-          amount: b.tokenBalance.toFixed(0),
-          msg: "",
-        },
-        Big(10).pow(12).mul(300).toFixed(0),
-        "1"
+      const balance = bigMin(
+        Big(await token.ft_balance_of({ account_id: NearConfig.accountId })),
+        b.tokenBalance
       );
+      if (balance.gt(0)) {
+        console.log(`Depositing ${b.tokenId} amount ${balance.toFixed(0)}`);
+        await token.ft_transfer_call(
+          {
+            receiver_id: NearConfig.burrowContractId,
+            amount: balance.toFixed(0),
+            msg: "",
+          },
+          Big(10).pow(12).mul(300).toFixed(0),
+          "1"
+        );
+      }
       return main(nearObjects, rebalance);
     }
   }

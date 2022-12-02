@@ -8,13 +8,13 @@
     "main": "src/liquidate.js"
   },
   "dependencies": {
+    "@supercharge/promise-pool": "^2.1.0",
+    "big.js": "^6.0.3",
     "lodash": "^4.17.21",
     "near-api-js": "^0.38.0",
-    "node-fetch": "^2.6.1",
-    "big.js": "^6.0.3"
+    "node-fetch": "^2.6.1"
   },
   "devDependencies": {
     "prettier": "^2.2.1"
   }
-
 }
