@@ -157,7 +157,7 @@ const computeLiquidation = (
 
     const borrowed = account.borrowed[borrowedIndex];
 
-    if (borrowed.pricedBalance.lt(minPricedBalance)) {
+    if (borrowed.pricedBalance.lt(minPricedBalance) || !borrowed.asset.config.canBorrow) {
       borrowedIndex++;
       continue;
     }
